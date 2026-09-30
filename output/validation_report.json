@@ -1,0 +1,14 @@
+{
+  "validation_f05": 0.7259732897043821,
+  "selected_probability_threshold": 0.3,
+  "train_source1_records": 7000,
+  "train_source2_records": 10370,
+  "train_source3_records": 9347,
+  "test_source1_records": 3000,
+  "test_source2_records": 4391,
+  "test_source3_records": 3985,
+  "training_pairs": 70113,
+  "positive_training_pairs": 10589,
+  "test_candidate_pairs": 30025,
+  "test_predicted_matches": 5631
+}

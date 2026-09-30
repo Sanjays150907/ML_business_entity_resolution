@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business Entity Resolution</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --text:#1c2430; --muted:#66707d; --line:#e2e6ec;
+    --accent:#2f5bea; --accent-soft:#e8eefe; --good:#1a8f4c; --good-soft:#e3f5EA;
+    --bad:#c23b3b; --warn:#b7791f; --warn-soft:#fdf3dc;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12161c; --card:#1a2029; --text:#e6e9ee; --muted:#939db0; --line:#2a323f;
+      --accent:#6c8cff; --accent-soft:#222c48; --good:#4cc686; --good-soft:#173324;
+      --bad:#ef7676; --warn:#e5b25a; --warn-soft:#3a2f17;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0 0}
+  h1{font-size:18px;margin:0}
+  nav{display:flex;gap:4px;margin-top:10px;overflow-x:auto}
+  nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;color:var(--muted);font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+  nav button.active{color:var(--accent);border-color:var(--accent)}
+  main{padding:22px 0 60px}
+  section{display:none} section.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+  .card h2{font-size:15px;margin:0 0 12px}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .stat .v{font-size:24px;font-weight:700}
+  .stat .l{color:var(--muted);font-size:12px;margin-top:2px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input,select,button.btn{font:inherit}
+  input[type=text],input[type=number],select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);min-width:0}
+  input[type=text]:focus,input[type=number]:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  button.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer}
+  button.btn:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:var(--accent-soft);color:var(--accent)}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  tr.click{cursor:pointer} tr.click:hover{background:var(--accent-soft)}
+  .tablewrap{overflow-x:auto}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);margin:1px 3px 1px 0}
+  .pill.good{background:var(--good-soft);color:var(--good)}
+  .pill.none{background:var(--warn-soft);color:var(--warn)}
+  .muted{color:var(--muted)}
+  .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;min-width:90px}
+  .bar>i{display:block;height:100%;background:var(--accent)}
+  .bar.good>i{background:var(--good)}
+  .hbar{display:grid;grid-template-columns:110px 1fr 70px;gap:10px;align-items:center;margin:7px 0}
+  .hbar .bar{height:14px}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px}
+  .field{display:flex;flex-direction:column;gap:4px;flex:1 1 200px}
+  .field label{font-size:12px;color:var(--muted);font-weight:600}
+  .field input,.field select{width:100%}
+  pre.log{background:#0f141b;color:#cfe3d4;padding:14px;border-radius:8px;max-height:280px;overflow:auto;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;margin:12px 0 0}
+  .banner{padding:12px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn);margin-bottom:16px;font-weight:600}
+  .error{color:var(--bad);font-weight:600}
+  .source-box{background:var(--accent-soft);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+  .source-box b{font-size:15px}
+  dialog{border:0;border-radius:12px;padding:0;width:min(860px,94vw);background:var(--card);color:var(--text);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  dialog::backdrop{background:rgba(10,14,20,.55)}
+  .dhead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .dbody{padding:18px;max-height:75vh;overflow:auto}
+  .x{background:none;border:0;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+  .files a{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);color:var(--accent);text-decoration:none;font-weight:600}
+  .files a:last-child{border:0}
+  .files span{color:var(--muted);font-weight:400}
+  .slider{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+  .slider input{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top"><h1>🔗 Business Entity Resolution</h1><span class="muted" id="hdr-note"></span></div>
+    <nav id="tabs">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="results">Results</button>
+      <button data-tab="try">Try a record</button>
+      <button data-tab="run">Run pipeline</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Dashboard -->
+  <section id="tab-dashboard" class="active">
+    <div id="no-output" class="banner" style="display:none">
+      No output found yet. Open the “Run pipeline” tab to train the model and generate results.
+    </div>
+    <div class="grid" id="stats"></div>
+    <div class="card" style="margin-top:18px"><h2>Matches per Source-1 record</h2><div id="dist" class="muted">–</div></div>
+    <div class="card"><h2>Match rate by country</h2><div id="countries" class="muted">–</div></div>
+    <div class="card"><h2>Download output files</h2><div class="files" id="files" class="muted">–</div></div>
+  </section>
+
+  <!-- Results -->
+  <section id="tab-results">
+    <div class="card">
+      <div class="row">
+        <input type="text" id="q" placeholder="Search ID, name, address, country…" style="flex:1 1 260px">
+        <select id="filter">
+          <option value="all">All records</option>
+          <option value="matched">Has matches</option>
+          <option value="unmatched">No match (singleton)</option>
+        </select>
+      </div>
+      <div class="tablewrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>Source-1 ID</th><th>Business</th><th>Country</th><th>Matched IDs</th><th>Cands</th></tr></thead>
+          <tbody id="res-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager"><span class="muted" id="pg-info"></span>
+        <button class="btn ghost" id="prev">‹ Prev</button><button class="btn ghost" id="next">Next ›</button></div>
+    </div>
+  </section>
+
+  <!-- Try a record -->
+  <section id="tab-try">
+    <div class="card">
+      <h2>Match a new business against the test Source-2 / Source-3 records</h2>
+      <div class="row">
+        <div class="field"><label>Business name *</label><input type="text" id="t-name" placeholder="Metro Electronics 7001 Pvt Ltd"></div>
+        <div class="field"><label>Address</label><input type="text" id="t-addr" placeholder="1610 MG Road, New York"></div>
+        <div class="field" style="flex:0 1 120px"><label>Country</label><input type="text" id="t-country" placeholder="US"></div>
+        <button class="btn" id="t-go" style="align-self:flex-end">Find matches</button>
+      </div>
+      <div id="t-msg" class="error" style="margin-top:10px"></div>
+    </div>
+    <div class="card" id="t-out" style="display:none">
+      <div class="slider"><span class="muted">Threshold</span><input type="range" id="t-th" min="0" max="1" step="0.01"><b id="t-thv"></b></div>
+      <div class="tablewrap"><table><thead><tr><th>Target ID</th><th>Business</th><th>Address</th><th>Country</th><th>Probability</th></tr></thead><tbody id="t-body"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- Run -->
+  <section id="tab-run">
+    <div class="card">
+      <h2>Train the model and regenerate output files</h2>
+      <p class="muted" style="margin-top:0">Runs the same pipeline as <code>python -m src.main</code>. It can take a few minutes on the full dataset.</p>
+      <div class="row">
+        <div class="field" style="flex:0 1 200px"><label>Validation fraction</label><input type="number" id="vf" value="0.20" min="0.05" max="0.5" step="0.05"></div>
+        <button class="btn" id="run-btn" style="align-self:flex-end">▶ Run pipeline</button>
+        <span id="run-state" class="muted" style="align-self:flex-end;padding-bottom:9px"></span>
+      </div>
+      <pre class="log" id="log" style="display:none"></pre>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <div class="dhead"><b id="dlg-title">Record</b><button class="x" id="dlg-x" aria-label="Close">×</button></div>
+  <div class="dbody">
+    <div class="source-box" id="dlg-src"></div>
+    <div class="slider"><span class="muted">Threshold</span><input type="range" id="d-th" min="0" max="1" step="0.01"><b id="d-thv"></b></div>
+    <div class="tablewrap"><table><thead><tr><th>Target ID</th><th>Business</th><th>Address</th><th>Country</th><th>Probability</th></tr></thead><tbody id="dlg-body"></tbody></table></div>
+    <p class="muted" style="margin-bottom:0">The slider only previews how the match list would change; saved output files use the threshold chosen during training.</p>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtBytes = n => n > 1e6 ? (n/1e6).toFixed(1)+" MB" : n > 1e3 ? (n/1e3).toFixed(1)+" KB" : n+" B";
+async function api(url, opts){
+  const r = await fetch(url, opts);
+  let data = {}; try { data = await r.json(); } catch(e){}
+  if(!r.ok && !data.error) data.error = "Request failed ("+r.status+")";
+  return data;
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t){
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === "tab-"+t));
+  if(t === "dashboard") loadSummary();
+  if(t === "results") loadResults();
+}
+
+/* ---------- dashboard ---------- */
+async function loadSummary(){
+  const d = await api("/api/summary");
+  const r = d.report;
+  $("#no-output").style.display = r || Object.keys(d.files||{}).length ? "none" : "block";
+  const stats = r ? [
+    ["Validation F0.5", (r.validation_f05*100).toFixed(1)+"%"],
+    ["Threshold", r.selected_probability_threshold],
+    ["Test Source-1 records", r.test_source1_records.toLocaleString()],
+    ["Candidate pairs", r.test_candidate_pairs.toLocaleString()],
+    ["Predicted matches", r.test_predicted_matches.toLocaleString()],
+    ["Training pairs", r.training_pairs.toLocaleString()+" ("+r.positive_training_pairs.toLocaleString()+" +)"],
+  ] : [];
+  $("#stats").innerHTML = stats.map(([l,v]) => `<div class="stat"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("");
+
+  const dist = d.distribution;
+  if(dist){
+    const total = dist.matches_per_record.reduce((a,x)=>a+x.count,0) || 1;
+    const max = Math.max(...dist.matches_per_record.map(x=>x.count));
+    $("#dist").innerHTML = dist.matches_per_record.map(x =>
+      `<div class="hbar"><span>${x.n===0?"No match":x.n>=4?"4+ matches":x.n+(x.n===1?" match":" matches")}</span>
+       <div class="bar"><i style="width:${x.count/max*100}%"></i></div>
+       <span class="muted">${x.count.toLocaleString()} · ${(x.count/total*100).toFixed(0)}%</span></div>`).join("")
+      + `<p class="muted" style="margin-bottom:0">Matched IDs — Source-2: ${dist.by_source.S2.toLocaleString()}, Source-3: ${dist.by_source.S3.toLocaleString()}</p>`;
+    $("#countries").innerHTML = dist.by_country.map(c =>
+      `<div class="hbar"><span>${esc(c.country)}</span>
+       <div class="bar good"><i style="width:${c.matched/c.total*100}%"></i></div>
+       <span class="muted">${(c.matched/c.total*100).toFixed(0)}% of ${c.total.toLocaleString()}</span></div>`).join("");
+  } else { $("#dist").textContent = "No results yet."; $("#countries").textContent = "No results yet."; }
+
+  const f = Object.entries(d.files||{});
+  $("#files").innerHTML = f.length ? f.map(([n,m]) =>
+    `<a href="/download/${encodeURIComponent(n)}">${esc(n)} <span>${fmtBytes(m.size)}</span></a>`).join("") : "<span class='muted'>No files yet.</span>";
+}
+
+/* ---------- results ---------- */
+let page = 1, per = 25, total = 0, timer;
+$("#q").oninput = () => { clearTimeout(timer); timer = setTimeout(()=>{page=1; loadResults();}, 250); };
+$("#filter").onchange = () => { page = 1; loadResults(); };
+$("#prev").onclick = () => { if(page>1){page--; loadResults();} };
+$("#next").onclick = () => { if(page*per<total){page++; loadResults();} };
+async function loadResults(){
+  const p = new URLSearchParams({q:$("#q").value, filter:$("#filter").value, page, per});
+  const d = await api("/api/results?"+p);
+  const body = $("#res-body");
+  if(d.error && !d.rows?.length){ body.innerHTML = `<tr><td colspan="5" class="muted">${esc(d.error)}</td></tr>`; $("#pg-info").textContent=""; return; }
+  total = d.total;
+  body.innerHTML = d.rows.length ? d.rows.map(r => `
+    <tr class="click" data-id="${esc(r.id)}">
+      <td><b>${esc(r.id)}</b></td>
+      <td>${esc(r.name)}<div class="muted">${esc(r.address)}</div></td>
+      <td>${esc(r.country)}</td>
+      <td>${r.matches.length ? r.matches.map(m=>`<span class="pill good">${esc(m)}</span>`).join("") : `<span class="pill none">no match</span>`}</td>
+      <td>${r.n_candidates}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="muted">No records found.</td></tr>`;
+  body.querySelectorAll("tr.click").forEach(tr => tr.onclick = () => openEntity(tr.dataset.id));
+  const from = total ? (page-1)*per+1 : 0, to = Math.min(page*per,total);
+  $("#pg-info").textContent = `${from}–${to} of ${total.toLocaleString()}`;
+  $("#prev").disabled = page<=1; $("#next").disabled = page*per>=total;
+}
+
+/* ---------- candidate table (shared by dialog + try tab) ---------- */
+function renderCands(items, th, tbody){
+  tbody.innerHTML = items.length ? items.map(c => {
+    const p = c.prob, isM = p!==null && p>=th;
+    return `<tr>
+      <td><b>${esc(c.id)}</b> ${isM?'<span class="pill good">match</span>':''}</td>
+      <td>${esc(c.name)}</td><td>${esc(c.address)}</td><td>${esc(c.country)}</td>
+      <td style="min-width:130px">${p===null?'<span class="muted">n/a</span>':
+        `<div class="bar ${isM?'good':''}"><i style="width:${p*100}%"></i></div><span class="muted">${(p*100).toFixed(1)}%</span>`}</td></tr>`;
+  }).join("") : `<tr><td colspan="5" class="muted">No candidates found.</td></tr>`;
+}
+
+/* ---------- entity dialog ---------- */
+let dlgItems = [];
+async function openEntity(id){
+  const d = await api("/api/entity/"+encodeURIComponent(id));
+  if(d.error){ alert(d.error); return; }
+  dlgItems = d.candidates;
+  $("#dlg-title").textContent = d.source.id;
+  $("#dlg-src").innerHTML = `<b>${esc(d.source.name)}</b><div>${esc(d.source.address)} · ${esc(d.source.country)}</div>`;
+  const th = $("#d-th"); th.value = d.threshold; $("#d-thv").textContent = (+d.threshold).toFixed(2);
+  renderCands(dlgItems, +th.value, $("#dlg-body"));
+  th.oninput = () => { $("#d-thv").textContent = (+th.value).toFixed(2); renderCands(dlgItems, +th.value, $("#dlg-body")); };
+  $("#dlg").showModal();
+}
+$("#dlg-x").onclick = () => $("#dlg").close();
+$("#dlg").addEventListener("click", e => { if(e.target === $("#dlg")) $("#dlg").close(); });
+
+/* ---------- try a record ---------- */
+let tItems = [];
+async function tryMatch(){
+  $("#t-msg").textContent = "";
+  const name = $("#t-name").value.trim();
+  if(!name){ $("#t-msg").textContent = "Please enter a business name."; return; }
+  $("#t-go").disabled = true;
+  const d = await api("/api/match", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name, address:$("#t-addr").value, country:$("#t-country").value})});
+  $("#t-go").disabled = false;
+  if(d.error){ $("#t-msg").textContent = d.error; $("#t-out").style.display="none"; return; }
+  tItems = d.candidates;
+  const th = $("#t-th"); th.value = d.threshold; $("#t-thv").textContent = (+d.threshold).toFixed(2);
+  th.oninput = () => { $("#t-thv").textContent = (+th.value).toFixed(2); renderCands(tItems, +th.value, $("#t-body")); };
+  renderCands(tItems, +th.value, $("#t-body"));
+  $("#t-out").style.display = "block";
+}
+$("#t-go").onclick = tryMatch;
+["#t-name","#t-addr","#t-country"].forEach(s => $(s).addEventListener("keydown", e => { if(e.key==="Enter") tryMatch(); }));
+
+/* ---------- run pipeline ---------- */
+let poll;
+async function runPipeline(){
+  const d = await api("/api/run", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({val_fraction: parseFloat($("#vf").value)})});
+  if(d.error){ $("#run-state").innerHTML = `<span class="error">${esc(d.error)}</span>`; return; }
+  startPolling();
+}
+async function pollJob(){
+  const j = await api("/api/job");
+  if(j.state === "idle") return false;
+  const log = $("#log"); log.style.display = "block"; log.textContent = j.log || "Starting…";
+  log.scrollTop = log.scrollHeight;
+  const secs = Math.round(((j.finished||j.now) - j.started));
+  if(j.state === "running"){ $("#run-btn").disabled = true; $("#run-state").textContent = `Running… ${secs}s`; return true; }
+  $("#run-btn").disabled = false;
+  $("#run-state").innerHTML = j.state === "done" ? `<span style="color:var(--good);font-weight:600">Finished in ${secs}s ✓</span>`
+    : `<span class="error">Failed: ${esc(j.error)}</span>`;
+  return false;
+}
+function startPolling(){
+  clearInterval(poll);
+  pollJob().then(running => { if(running) poll = setInterval(async()=>{ if(!(await pollJob())){ clearInterval(poll); loadSummary(); } }, 1200); });
+}
+$("#run-btn").onclick = runPipeline;
+
+loadSummary();
+startPolling();
+</script>
+</body>
+</html>
